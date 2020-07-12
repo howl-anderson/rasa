@@ -18,6 +18,7 @@ from rasa.core.constants import (
     EXTERNAL_MESSAGE_PREFIX,
     ACTION_NAME_SENDER_ID_CONNECTOR_STR,
 )
+from rasa.nlu.training_data import Message
 
 if typing.TYPE_CHECKING:
     from rasa.core.trackers import DialogueStateTracker
@@ -216,12 +217,16 @@ class UserUttered(Event):
         input_channel: Optional[Text] = None,
         message_id: Optional[Text] = None,
         metadata: Optional[Dict] = None,
+        # TODO: Throw out message attribute
+        message: Optional[Message] = None,
     ):
         self.text = text
         self.intent = intent if intent else {}
         self.entities = entities if entities else []
         self.input_channel = input_channel
         self.message_id = message_id
+        self.message = message if message else None
+
 
         super().__init__(timestamp, metadata)
 
@@ -257,21 +262,23 @@ class UserUttered(Event):
         )
 
     def __hash__(self) -> int:
-        return hash(
-            (self.text, self.intent.get("name"), jsonpickle.encode(self.entities))
-        )
+        return hash((self.text, self.intent_name, jsonpickle.encode(self.entities)))
 
-    def __eq__(self, other) -> bool:
+    @property
+    def intent_name(self) -> Optional[Text]:
+        return self.intent.get("name")
+
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, UserUttered):
             return False
         else:
             return (
                 self.text,
-                self.intent.get("name"),
+                self.intent_name,
                 [jsonpickle.encode(ent) for ent in self.entities],
             ) == (
                 other.text,
-                other.intent.get("name"),
+                other.intent_name,
                 [jsonpickle.encode(ent) for ent in other.entities],
             )
 
@@ -611,7 +618,7 @@ class ReminderScheduled(Event):
         kill_on_user_message: bool = True,
         timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
-    ):
+    )  -> None:
         """Creates the reminder
 
         Args:
@@ -713,7 +720,7 @@ class ReminderCancelled(Event):
         entities: Optional[List[Dict]] = None,
         timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
-    ):
+    )  -> None:
         """Creates a ReminderCancelled event.
 
         If all arguments are `None`, this will cancel all reminders.
@@ -841,7 +848,7 @@ class StoryExported(Event):
         path: Optional[Text] = None,
         timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
-    ):
+    ) -> None:
         self.path = path
         super().__init__(timestamp, metadata)
 
@@ -978,7 +985,8 @@ class ActionExecuted(Event):
     """An operation describes an action taken + its result.
 
     It comprises an action and a list of events. operations will be appended
-    to the latest ``Turn`` in the ``Tracker.turns``."""
+    to the latest ``Turn`` in the ``Tracker.turns``.
+    """
 
     type_name = "action"
 
@@ -989,11 +997,17 @@ class ActionExecuted(Event):
         confidence: Optional[float] = None,
         timestamp: Optional[float] = None,
         metadata: Optional[Dict] = None,
-    ):
+        # TODO: Throw out message attribute
+        message: Optional[Message] = None,
+        e2e_text: Optional[Text] = None,
+    ) -> None:
+
         self.action_name = action_name
         self.policy = policy
         self.confidence = confidence
         self.unpredictable = False
+        self.message = message if message else None
+        self.e2e_text = e2e_text
         super().__init__(timestamp, metadata)
 
     def __str__(self) -> Text:
@@ -1023,12 +1037,14 @@ class ActionExecuted(Event):
                 parameters.get("confidence"),
                 parameters.get("timestamp"),
                 parameters.get("metadata"),
+                message=parameters.get("message"),
+                e2e_text=parameters.get("e2e_text"),
             )
         ]
 
     def as_dict(self) -> Dict[Text, Any]:
         d = super().as_dict()
-        policy = None  # for backwards compatibility (persisted evemts)
+        policy = None  # for backwards compatibility (persisted events)
         if hasattr(self, "policy"):
             policy = self.policy
         confidence = None
