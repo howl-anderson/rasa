@@ -275,6 +275,7 @@ class CombinedDataImporter(TrainingDataImporter):
             lambda merged, other: merged.merge(other), nlu_data, TrainingData()
         )
 
+
 class E2EImporter(TrainingDataImporter):
     """Importer which
     - enhances the NLU training data with actions / user messages from the stories.

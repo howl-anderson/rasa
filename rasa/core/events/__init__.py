@@ -227,7 +227,6 @@ class UserUttered(Event):
         self.message_id = message_id
         self.message = message if message else None
 
-
         super().__init__(timestamp, metadata)
 
         if parse_data:
@@ -618,7 +617,7 @@ class ReminderScheduled(Event):
         kill_on_user_message: bool = True,
         timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
-    )  -> None:
+    ) -> None:
         """Creates the reminder
 
         Args:
@@ -720,7 +719,7 @@ class ReminderCancelled(Event):
         entities: Optional[List[Dict]] = None,
         timestamp: Optional[float] = None,
         metadata: Optional[Dict[Text, Any]] = None,
-    )  -> None:
+    ) -> None:
         """Creates a ReminderCancelled event.
 
         If all arguments are `None`, this will cancel all reminders.

@@ -81,7 +81,10 @@ class Tokenizer(Component):
 
         for example in training_data.training_examples:
             for attribute in MESSAGE_ATTRIBUTES:
-                if example.get(attribute) is not None and not example.get(attribute) == '':
+                if (
+                    example.get(attribute) is not None
+                    and not example.get(attribute) == ""
+                ):
                     if attribute == INTENT:
                         tokens = self._split_intent(example)
                     else:
