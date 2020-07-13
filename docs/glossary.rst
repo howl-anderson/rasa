@@ -95,3 +95,5 @@ Glossary
     Word embedding / Word vector
         A vector of floating point numbers which represent the meaning of a word. Words which have similar meanings should have vectors which point in almost the same direction.  Word embeddings are often used as an input to machine learning algorithms.
 
+
+TODO: rules

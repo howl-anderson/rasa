@@ -1,6 +1,8 @@
 :desc: Stories are used to teach Rasa real conversation designs to learn
        from providing the basis for a scalable machine learning dialogue management.
 
+TODO: Place clever links to rules where it makes sense?
+
 .. _stories:
 
 Stories

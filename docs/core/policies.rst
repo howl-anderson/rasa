@@ -373,6 +373,16 @@ It is recommended to use ``state_featurizer=LabelTokenizerSingleStateFeaturizer(
             for details.
 
 
+TODO: Deprecate MappingPolicy, FallbackPolicy, TwoStageFallbackPolicy
+
+
+.. _rule-policy:
+
+Rule Policy
+^^^^^^^^^^^
+
+TODO: add rulepolicy here
+
 .. _mapping-policy:
 
 Mapping Policy

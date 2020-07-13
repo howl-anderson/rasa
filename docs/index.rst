@@ -55,6 +55,7 @@ Understand messages, hold conversations, and connect to messaging channels and A
 
    About <core/about>
    core/stories
+   core/rules
    core/domains
    core/responses
    core/actions
