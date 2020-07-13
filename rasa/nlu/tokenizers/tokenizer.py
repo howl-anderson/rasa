@@ -5,7 +5,7 @@ from typing import Text, List, Optional, Dict, Any
 from rasa.nlu.config import RasaNLUModelConfig
 from rasa.nlu.training_data import TrainingData, Message
 from rasa.nlu.components import Component
-from rasa.nlu.constants import TEXT, TOKENS_NAMES, MESSAGE_ATTRIBUTES, INTENT
+from rasa.nlu.constants import TEXT, TOKENS_NAMES, MESSAGE_ATTRIBUTES, INTENT, ACTION_TEXT, MESSAGE_ACTION_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -87,23 +87,55 @@ class Tokenizer(Component):
                 ):
                     if attribute == INTENT:
                         tokens = self._split_intent(example)
+                    elif attribute == MESSAGE_ACTION_NAME: 
+                        # when we have text action, the text will be stored both in `action_name` and in `text`;
+                        # we need to check if the text is empty to make sure that it is actually the `action_name`
+                        if not example.get(ACTION_TEXT):
+                            tokens = self._split_action(example)
+                        else:
+                            attribute = ACTION_TEXT
+                            tokens = self.tokenize(example, attribute)
                     else:
                         tokens = self.tokenize(example, attribute)
                     example.set(TOKENS_NAMES[attribute], tokens)
 
-    def process(self, message: Message, **kwargs: Any) -> None:
+    def process(self, message: Message, attribute: Text = TEXT, **kwargs: Any) -> None:
         """Tokenize the incoming message."""
+        if attribute == INTENT:
+            tokens = self._split_intent(message)
+        elif attribute == MESSAGE_ACTION_NAME: 
+            # when we have text action, the text will be stored both in `action_name` and in `text`;
+            # we need to check if the text is empty to make sure that it is actually the `action_name`
+            if not message.get(ACTION_TEXT):
+                tokens = self._split_action(message)
+            else:
+                attribute = ACTION_TEXT
+                tokens = self.tokenize(message, attribute)
+        else:
+            tokens = self.tokenize(message, attribute)
 
-        tokens = self.tokenize(message, TEXT)
-        message.set(TOKENS_NAMES[TEXT], tokens)
+        message.set(TOKENS_NAMES[attribute], tokens)
 
-    def _split_intent(self, message: Message):
+    def _split_intent(self, message: Message) -> List[Token]:
         text = message.get(INTENT)
 
         words = (
             text.split(self.intent_split_symbol)
             if self.intent_tokenization_flag
             else [text]
+        )
+
+        return self._convert_words_to_tokens(words, text)
+
+    def _split_action(self, message: Message) -> List[Token]:
+        if message.get(MESSAGE_ACTION_NAME):
+            text = message.get(MESSAGE_ACTION_NAME)
+        else:
+            # during processing we store action name in text field
+            text = message.get(TEXT)
+        # TODO: Do we want a separate `action_split_symbol` or same as intent?
+        words = (
+            text.split(self.intent_split_symbol)
         )
 
         return self._convert_words_to_tokens(words, text)
