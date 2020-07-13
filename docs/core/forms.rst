@@ -9,7 +9,11 @@ Forms
 .. edit-link::
 
 .. note::
-   There is an in-depth tutorial `here <https://blog.rasa.com/building-contextual-assistants-with-rasa-formaction/>`_ about how to use Rasa Forms for slot filling.
+   There is an in-depth tutorial
+   `here <https://blog.rasa.com/building-contextual-assistants-with-rasa-formaction/>`_
+   about how to use Rasa Forms for slot filling.
+
+TODO: Where to add deprecation for formpolicy? is the migration guide enough?
 
 .. contents::
    :local:
@@ -18,268 +22,323 @@ One of the most common conversation patterns is to collect a few pieces of
 information from a user in order to do something (book a restaurant, call an
 API, search a database, etc.). This is also called **slot filling**.
 
+Usage
+-----
 
-If you need to collect multiple pieces of information in a row, we recommended
-that you create a ``FormAction``. This is a single action which contains the
-logic to loop over the required slots and ask the user for this information.
-There is a full example using forms in the ``examples/formbot`` directory of
-Rasa Core.
-
-
-When you define a form, you need to add it to your domain file.
-If your form's name is ``restaurant_form``, your domain would look like this:
-
-.. code-block:: yaml
-
-   forms:
-     - restaurant_form
-   actions:
-     ...
-
-See ``examples/formbot/domain.yml`` for an example.
-
-Configuration File
-------------------
-
-To use forms, you also need to include the ``FormPolicy`` in your policy
-configuration file. For example:
+To use forms with Rasa Open Source you need to make sure that the :ref:`rule-policy` is
+added to your policy configuration. For example:
 
 .. code-block:: yaml
 
   policies:
-    - name: "FormPolicy"
+    - ... # other policies
+    - name: RulePolicy
 
-see ``examples/formbot/config.yml`` for an example.
+Defining a Form
+~~~~~~~~~~~~~~~
 
-Form Basics
------------
+Define a form by adding it to the ``forms`` section in your :ref:`domain<domains>`.
+The name of the form is also the name action of the action which you can use in
+:ref:`stories` or :ref:`rules` to handle form executions. Further you need to define
+:ref:`forms-slot-mappings` for each slot which your form should fill. You can specify
+one or more slot mappings for each slot to be filled.
 
-Using a ``FormAction``, you can describe *all* of the happy paths with a single
-story. By "happy path", we mean that whenever you ask a user for some information,
-they respond with the information you asked for.
+The following example of a form ``your_form`` will fill only one slot
+``age`` from an extracted entity ``age``.
 
-If we take the example of the restaurant bot, this single story describes all of the
-happy paths.
+.. code-block:: yaml
 
-.. code-block:: story
+  forms:
+    your_form:
+      age:
+      - type: from_entity
+        entity: age
 
-    ## happy path
-    * request_restaurant
-        - restaurant_form
-        - form{"name": "restaurant_form"}
-        - form{"name": null}
+Once the form action gets called for the first time, the form gets activated and will
+start asking the user for the next slot which is not already set. It does this by
+looking for a response called ``utter_ask_{slot_name}``, so you need to define these in
+your domain file for each required slot.
 
-In this story the user intent is ``request_restaurant``, which is followed by
-the form action ``restaurant_form``. With ``form{"name": "restaurant_form"}`` the
-form is activated and with ``form{"name": null}`` the form is deactivated again.
-As shown in the section :ref:`section_unhappy` the bot can execute any kind of
-actions outside the form while the form is still active. On the "happy path",
-where the user is cooperating well and the system understands the user input correctly,
-the form is filling all requested slots without interruption.
+TODO: explain using custom action for asking
 
-The ``FormAction`` will only request slots which haven't already been set.
-If a user starts the conversation with
-`I'd like a vegetarian Chinese restaurant for 8 people`, then they won't be
-asked about the ``cuisine`` and ``num_people`` slots.
+Activating a Form
+~~~~~~~~~~~~~~~~~
 
-Note that for this story to work, your slots should be :ref:`unfeaturized
-<unfeaturized-slot>`. If any of these slots are featurized, your story needs to
-include ``slot{}`` events to show these slots being set. In that case, the
-easiest way to create valid stories is to use :ref:`interactive-learning`.
+To activate a form you need to add add a :ref:`story<stories>` or :ref:`rule<rules>`
+which describes when the assistant should run the form. In case a certain intent
+triggers a form you can for example use the following rule:
 
-In the story above, ``restaurant_form`` is the name of our form action.
-Here is an example of what it looks like.
-You need to define three methods:
+.. code-block:: yaml
 
-- ``name``: the name of this action
-- ``required_slots``: a list of slots that need to be filled for the ``submit`` method to work.
-- ``submit``: what to do at the end of the form, when all the slots have been filled.
+    - rule: Activate form
+      steps:
+      - ...
+      - intent: intent_which_activates_form
+      - action: your_form
+      - form: your_form
 
-.. literalinclude:: ../../examples/formbot/actions.py
-   :dedent: 4
-   :pyobject: RestaurantForm.name
+.. note::
 
-.. literalinclude:: ../../examples/formbot/actions.py
-   :dedent: 4
-   :pyobject: RestaurantForm.required_slots
+    The ``form: your_form`` step indicates that the form should be activated after
+    ``your_form`` was run.
 
-.. literalinclude:: ../../examples/formbot/actions.py
-   :dedent: 4
-   :pyobject: RestaurantForm.submit
+.. _forms-slot-mappings:
 
-Once the form action gets called for the first time,
-the form gets activated and the ``FormPolicy`` jumps in.
-The ``FormPolicy`` is extremely simple and just always predicts the form action.
-See :ref:`section_unhappy` for how to work with unexpected user input.
+Slot Mappings
+~~~~~~~~~~~~~
 
-Every time the form action gets called, it will ask the user for the next slot in
-``required_slots`` which is not already set.
-It does this by looking for a response called ``utter_ask_{slot_name}``,
-so you need to define these in your domain file for each required slot.
+Rasa Open Source comes with four predefined functions to fill the slots of a form
+based on the latest user message. Please see :ref:`forms-custom-slot-mappings` if
+you need a custom function to extract the required information.
 
-Once all the slots are filled, the ``submit()`` method is called, where you can
-use the information you've collected to do something for the user, for example
-querying a restaurant API.
-If you don't want your form to do anything at the end, just use ``return []``
-as your submit method.
-After the submit method is called, the form is deactivated,
-and other policies in your Core model will be used to predict the next action.
+from_entity
+^^^^^^^^^^^
 
-Custom slot mappings
---------------------
+The ``from_entity`` mapping fills slots based on extracted entities.
+It will look for an entity called ``entity_name`` to fill a slot ``slot_name``
+regardless of user intent if ``intent_name`` is ``None`` else only if the users intent
+is ``intent_name``. If ``role_name`` and/or ``group_name`` are provided, the role/group
+label of the entity also needs to match the given values. The slot mapping will not
+apply if the intent of the last message is ``excluded_intent``. Note that you can
+define also define lists of intents for ``intent`` and ``not_intent``.
 
-If you do not define slot mappings, slots will be only filled by entities
-with the same name as the slot that are picked up from the user input.
-Some slots, like ``cuisine``, can be picked up using a single entity, but a
-``FormAction`` can also support yes/no questions and free-text input.
-The ``slot_mappings`` method defines how to extract slot values from user responses.
+.. code-block:: yaml
 
-Here's an example for the restaurant bot:
+  forms:
+    your_form:
+      slot_name:
 
-.. literalinclude:: ../../examples/formbot/actions.py
-   :dedent: 4
-   :pyobject: RestaurantForm.slot_mappings
+      - type: from_entity
+        entity: entity_name
+        role: role_name
+        group: group name
+        intent: intent_name
+        not_intent: excluded_intent
 
-The predefined functions work as follows:
+from_text
+^^^^^^^^^
 
-- ``self.from_entity(entity=entity_name, intent=intent_name, role=role_name, group=group_name)``
-  will look for an entity called ``entity_name`` to fill a slot
-  ``slot_name`` regardless of user intent if ``intent_name`` is ``None``
-  else only if the users intent is ``intent_name``. If ``role_name`` and/or ``group_name``
-  are provided, the role/group label of the entity also needs to match the given values.
-- ``self.from_intent(intent=intent_name, value=value)``
-  will fill slot ``slot_name`` with ``value`` if user intent is ``intent_name``.
-  To make a boolean slot, take a look at the definition of ``outdoor_seating``
-  above. Note: Slot will not be filled with user intent of message triggering
-  the form action. Use ``self.from_trigger_intent`` below.
-- ``self.from_trigger_intent(intent=intent_name, value=value)``
-  will fill slot ``slot_name`` with ``value`` if form was triggered with user
-  intent ``intent_name``.
-- ``self.from_text(intent=intent_name)`` will use the next
-  user utterance to fill the text slot ``slot_name`` regardless of user intent
-  if ``intent_name`` is ``None`` else only if user intent is ``intent_name``.
-- If you want to allow a combination of these, provide them as a list as in the
-  example above
+The ``from_text`` mapping will use the text of the next user utterance to fill the slot
+``slot_name`` regardless of user intent if ``intent_name`` is ``None`` else only if
+user intent is ``intent_name``. The slot mapping will not
+apply if the intent of the last message is ``excluded_intent``. Note that you can
+define also define lists of intents for ``intent`` and ``not_intent``.
+
+.. code-block:: yaml
+
+  forms:
+    your_form:
+      slot_name:
+
+      - type: from_text
+        intent: intent_name
+        not_intent: excluded_intent
+
+from_intent
+^^^^^^^^^^^
+
+The ``from_intent`` mapping will fill slot ``slot_name`` with value ``my_value`` if
+user intent is ``intent_name`` or ``None``. The slot mapping will not
+apply if the intent of the last message is ``excluded_intent``. Note that you can
+define also define lists of intents for ``intent`` and ``not_intent``.
+
+.. note::
+
+    The slot mapping will not apply during the initial activation of the form. To fill
+    a slot based on the intent which activated the form use the ``from_trigger_intent``
+    mapping
+
+.. code-block:: yaml
+
+  forms:
+    your_form:
+      slot_name:
+
+      - type: from_intent
+        value: my_value
+        intent: intent_name
+        not_intent: excluded_intent
+
+from_trigger_intent
+^^^^^^^^^^^^^^^^^^^
+
+The ``from_trigger_intent`` mapping will fill slot ``slot_name`` with value ``my_value``
+if the form was activated by a user message with intent ``intent_name``.
+The slot mapping will not apply if the intent of the last message is
+``excluded_intent``. Note that you can define also define lists of intents for
+``intent`` and ``not_intent``.
+
+.. code-block:: yaml
+
+  forms:
+    your_form:
+      slot_name:
+
+      - type: from_trigger_intent
+        value: my_value
+        intent: intent_name
+        not_intent: excluded_intent
 
 
-Validating user input
----------------------
+Writing Stories / Rules for Unhappy Form Paths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Explain how featurize / unfeaturize stuff?
 
-After extracting a slot value from user input, the form will try to validate the
-value of the slot. Note that by default, validation only happens if the form
-action is executed immediately after user input. This can be changed in the
-``_validate_if_required()`` function of the ``FormAction`` class in Rasa SDK.
-Any required slots that were filled before the initial activation of a form
-are validated upon activation as well.
+Advanced Usage
+--------------
 
-By default, validation only checks if the requested slot was successfully
-extracted from the slot mappings. If you want to add custom validation, for
-example to check a value against a database, you can do this by writing a helper
-validation function with the name ``validate_{slot-name}``.
+Forms are fully customizable using :ref:`custom-actions`.
 
-Here is an example , ``validate_cuisine()``, which checks if the extracted cuisine slot
-belongs to a list of supported cuisines.
+Validating Form input
+~~~~~~~~~~~~~~~~~~~~~
 
-.. literalinclude:: ../../examples/formbot/actions.py
-   :pyobject: RestaurantForm.cuisine_db
+After extracting a slot value from user input, you can validate the extracted slots.
+By default Rasa Open Source only validates if any slot was filled after requesting
+a slot. If nothing is extracted from the user’s utterance for any of the required slots,
+an ActionExecutionRejection error will be raised, meaning the action execution was
+rejected and therefore Core will fall back onto a different policy to predict another
+action.
 
-.. literalinclude:: ../../examples/formbot/actions.py
-   :pyobject: RestaurantForm.validate_cuisine
+You can implement a :ref:`custom action<custom-actions>` ``action_validate_{form_name}``
+to validate any extracted slots. Make sure to add this action to the ``actions``
+section of your domain:
 
-As the helper validation functions return dictionaries of slot names and values
-to set, you can set more slots than just the one you are validating from inside
-a helper validation method. However, you are responsible for making sure that
-those extra slot values are valid.
+.. code-block:: yaml
 
-In case the slot is filled with something that you are certain can't be handled
-and you want to deactivate the form directly,
-you can overwrite the ``request_next_slot()`` method to do so. The example below
-checks the value of the ``cuisine`` slot directly, but you could use any logic
-you'd like to trigger deactivation:
+  actions:
+  - ... # other actions
+  - action_validate_my_form
+
+When the form is executed it will run your custom action. In your custom action
+you can either
+
+- validate already extracted slots. You can retrieve them from the tracker by running
+  ``tracker.get_extracted_slots``.
+- use :ref:`forms-custom-slot-mappings` to extract slot values .
+
+After validating the extracted slots, return ``SlotSet`` events for them. If you want
+to mark a slot as invalid return a ``SlotSet`` event which sets the value to ``None``.
+Note that if you don't return a ``SlotSet`` for an extracted slot, Rasa Open Source
+will assume that the value is valid.
+
+The following example shows the implementation of a custom action
+which validates that every extracted slot has a value.
 
 .. code-block:: python
 
-    def request_next_slot(
-        self,
-        dispatcher: "CollectingDispatcher",
-        tracker: "Tracker",
-        domain: Dict[Text, Any],
-    ) -> Optional[List[EventType]]:
-        """Request the next slot and utter template if needed,
-            else return None"""
-        for slot in self.required_slots(tracker):
-            if self._should_request_slot(tracker, slot):
+    from typing import Dict, Text, List, Any
 
-                ## Condition of validated slot that triggers deactivation
-                if slot == "cuisine" and tracker.get_slot("cuisine") == "caribbean":
-                    dispatcher.utter_message(text="Sorry, I can't help you with that")
-                    return self.deactivate()
-                
-                ## For all other slots, continue as usual
-                logger.debug(f"Request next slot '{slot}'")
-                dispatcher.utter_message(
-                    template=f"utter_ask_{slot}", **tracker.slots
-                )
-                return [SlotSet(REQUESTED_SLOT, slot)]
-        return None
+    from rasa_sdk import Tracker
+    from rasa_sdk.events import EventType
+    from rasa_sdk.executor import CollectingDispatcher
+    from rasa_sdk import Action
+    from rasa_sdk.events import SlotSet
 
 
-If nothing is extracted from the user's utterance for any of the required slots, an
-``ActionExecutionRejection`` error will be raised, meaning the action execution
-was rejected and therefore Core will fall back onto a different policy to
-predict another action.
+    class ValidateSlots(Action):
+        def name(self) -> Text:
+            return "action_validate_my_form"
 
-.. _section_unhappy:
+        def run(
+            self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict
+        ) -> List[EventType]:
+            extracted_slots: Dict[Text, Any] = tracker.get_extracted_slots()
 
-Handling unhappy paths
-----------------------
+            validation_events = []
 
-Of course your users will not always respond with the information you ask of them.
-Typically, users will ask questions, make chitchat, change their mind, or otherwise
-stray from the happy path. The way this works with forms is that a form will raise
-an ``ActionExecutionRejection`` if the user didn't provide the requested information.
-You need to handle events that might cause ``ActionExecutionRejection`` errors
-in your stories. For example, if you expect your users to chitchat with your bot,
-you could add a story like this:
+            for slot_name, slot_value in extracted_slots:
+                # Simply validation which checks if the extracted slot has a value
+                if slot_value is not None:
+                    validation_events.append(SlotSet(slot_name, slot_value))
+                else:
+                    # Return a `SlotSet` event with value `None` to indicate that this
+                    # slot still needs to be filled.
+                    validation_events.append(SlotSet(slot_name, None))
 
-.. code-block:: story
-
-    ## chitchat
-    * request_restaurant
-        - restaurant_form
-        - form{"name": "restaurant_form"}
-    * chitchat
-        - utter_chitchat
-        - restaurant_form
-        - form{"name": null}
-
-In some situations, users may change their mind in the middle of form action
-and decide not to go forward with their initial request. In cases like this, the
-assistant should stop asking for the requested slots. You can handle such situations
-gracefully using a default action ``action_deactivate_form`` which will deactivate
-the form and reset the requested slot. An example story of such conversation could
-look as follows:
-
-.. code-block:: story
-
-    ## chitchat
-    * request_restaurant
-        - restaurant_form
-        - form{"name": "restaurant_form"}
-    * stop
-        - utter_ask_continue
-    * deny
-        - action_deactivate_form
-        - form{"name": null}
+            return validation_events
 
 
-It is **strongly** recommended that you build these stories using interactive learning.
-If you write these stories by hand you will likely miss important things.
-Please read :ref:`section_interactive_learning_forms`
-on how to use interactive learning with forms.
+.. _forms-custom-slot-mappings:
+
+Custom Slot Mappings
+~~~~~~~~~~~~~~~~~~~~
+
+If none of the predefined :ref:`forms-slot-mappings` fit your use case, you can use the
+:ref:`custom action<custom-actions>` ``action_validate_{form_name}`` to write your own
+extraction code. Rasa Open Source will trigger this function when the form is run.
+
+Make sure your custom action returns ``SlotSet`` events for every extracted value.
+The following example shows the implementation of a custom slot mapping which sets
+a slot based on the length of the last user message.
+
+.. code-block:: python
+
+    from typing import Dict, Text, List
+
+    from rasa_sdk import Tracker
+    from rasa_sdk.events import EventType
+    from rasa_sdk.executor import CollectingDispatcher
+    from rasa_sdk import Action
+    from rasa_sdk.events import SlotSet
+
+
+    class ValidateSlots(Action):
+        def name(self) -> Text:
+            return "action_validate_my_form"
+
+        def run(
+            self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict
+        ) -> List[EventType]:
+            text_of_last_user_message = tracker.latest_message.get("text")
+
+            return [SlotSet("user_message_length", text_of_last_user_message)]
+
+
+Requesting Extra Slots
+~~~~~~~~~~~~~~~~~~~~~~
+
+If you have frequent changes to the required slots and don't want to retrain your
+assistant when something changes, you can also use a
+:ref:`custom action<custom-actions>` ``action_validate_{form_name}`` to define
+which slot should be requested. Rasa Open Source will run your custom action whenever
+the form is executed. Set the slot ``requested_slot`` to the name of the slot which
+should be extracted next. If all desired slots are filled, set ``requested_slot``
+to ``None``.
+
+The following example shows the implementation of a custom action which requests
+the three slots ``last_name``, ``first_name``, and ``city``.
+
+.. code-block:: python
+
+    from typing import Dict, Text, List
+
+    from rasa_sdk import Tracker
+    from rasa_sdk.events import EventType
+    from rasa_sdk.executor import CollectingDispatcher
+    from rasa_sdk import Action
+    from rasa_sdk.events import SlotSet
+
+
+    class ValidateSlots(Action):
+        def name(self) -> Text:
+            return "action_validate_my_form"
+
+        def run(
+            self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict
+        ) -> List[EventType]:
+            required_slots = ["last name", "first_name", "city"]
+
+            for slot_name in required_slots:
+                if tracker.slots.get(slot_name) is None:
+                    # The slot is not filled yet. Request the user to fill this slot next.
+                    return [SlotSet("requested_slot", slot_name)]
+
+            # All slots are filled.
+            return [SlotSet("requested_slot", None)]
+
 
 The requested_slot slot
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 The slot ``requested_slot`` is automatically added to the domain as an
 unfeaturized slot. If you want to make it featurized, you need to add it
@@ -320,36 +379,6 @@ Again, it is **strongly** recommended that you use interactive
 learning to build these stories.
 Please read :ref:`section_interactive_learning_forms`
 on how to use interactive learning with forms.
-
-.. _conditional-logic:
-
-Handling conditional slot logic
--------------------------------
-
-Many forms require more logic than just requesting a list of fields.
-For example, if someone requests ``greek`` as their cuisine, you may want to
-ask if they are looking for somewhere with outside seating.
-
-You can achieve this by writing some logic into the ``required_slots()`` method,
-for example:
-
-.. code-block:: python
-
-    @staticmethod
-    def required_slots(tracker) -> List[Text]:
-       """A list of required slots that the form has to fill"""
-
-       if tracker.get_slot('cuisine') == 'greek':
-         return ["cuisine", "num_people", "outdoor_seating",
-                 "preferences", "feedback"]
-       else:
-         return ["cuisine", "num_people",
-                 "preferences", "feedback"]
-
-This mechanism is quite general and you can use it to build many different
-kinds of logic into your forms.
-
-
 
 Debugging
 ---------
