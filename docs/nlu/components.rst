@@ -682,6 +682,8 @@ LexicalSyntacticFeaturizer
     .. note:: If you want to make use of ``pos`` or ``pos2`` you need to add ``SpacyTokenizer`` to your pipeline.
 
 
+.. _intent-classifier:
+
 Intent Classifiers
 ------------------
 
@@ -817,6 +819,62 @@ DIETClassifier
 :Description:
     You can find the detailed description of the :ref:`diet-classifier` under the section
     `Combined Entity Extractors and Intent Classifiers`.
+
+.. _fallback-classifier:
+
+FallbackClassifier
+~~~~~~~~~~~~~~~~~~
+
+:Short: Classifies a message with an intent ``nlu_fallback`` if the confidence levels of
+    previous classifiers were too low.
+:Outputs: ``entities``, ``intent`` and ``intent_ranking``
+:Requires: ``intent`` and``intent_ranking`` output from a previous :ref:`intent-classifier`
+:Output-Example:
+
+    .. code-block:: json
+
+        {
+            "intent": {"name": "nlu_fallback", "confidence": 1.0},
+            "intent_ranking": [
+                {
+                    "confidence": 1.0,
+                    "name": "nlu_fallback"
+                },
+                {
+                    "confidence": 0.28161531595656784,
+                    "name": "restaurant_search"
+                }
+            ],
+            "entities": [{
+                "end": 53,
+                "entity": "time",
+                "start": 48,
+                "value": "2017-04-10T00:00:00.000+02:00",
+                "confidence": 1.0,
+                "extractor": "DIETClassifier"
+            }]
+        }
+
+:Description:
+    The ``FallbackClassifier`` classifies a user message with an intent ``nlu_fallback``
+    in case the previous :ref:`intent-classifiers` weren't able to classify an intent
+    with a confidence great than the ``threshold`` of the ``FallbackClassifier``.
+    You can use this to write stories (TBD: LINK) or rules (TBD: LINK) which handle
+    message classifications with low confidence levels.
+
+    TODO: Example story?
+
+:Configuration:
+
+    The ``FallbackClassifier`` will only add its prediction for the ``nlu_fallback``
+    intent in case no other intent was predicted with a confidence greater or equal
+    than ``threshold``.
+
+        - ``threshold``:
+          This parameter sets the threshold for predicting the ``nlu_fallback`` intent.
+          If no intent predicted by a previous :ref:`intent-classifier` has a confidence
+          level greater or equal than ``threshold`` the `FallbackClassifier`` will add
+          a prediction of intent ``nlu_fallback`` with confidence ``1.0``.
 
 Entity Extractors
 -----------------
