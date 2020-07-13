@@ -34,6 +34,47 @@ General
   component in your ``policies`` configuration (``config.yml``) you can replace it
   with ``TEDPolicy``. It accepts the same configuration parameters.
 
+RulePolicy
+~~~~~~~~~~
+
+With the introduction of :ref:`rules` the following policies were deprecated:
+
+- :ref:`mapping-policy`
+- :ref:`fallback-policy`
+- :ref:`fallback-policy
+- :ref:`form-policy`
+
+TBD:
+- Migrate stories (no example, link to rulePolicy docs)
+- Migrate FallbackPolicy / TwoStageFallbackPolicy (include examples)
+
+Migrating from the Mapping Policy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you previously used the :ref:`mapping-policy`, you can follow the documentation on
+:ref:`rules-faqs` to convert your mapped intents to rules. Suppose you previously
+mapped an intent ``ask_is_bot`` as follows:
+
+.. code-block:: yaml
+
+    intents:
+     - ask_is_bot:
+         triggers: action_is_bot
+
+This would become the following rule:
+
+.. code-block:: yaml
+
+    rules:
+        rule: Rule to map `ask_is_bot` intent
+        steps:
+        - ...
+        - intent: ask_is_bot
+        - action: action_is_bot
+
+FormPolicy
+~~~~~~~~~~
+TBD: Tell that old way still works, but it's deprecated. Link to new docs?
 
 .. _migration-to-rasa-1.8:
 
