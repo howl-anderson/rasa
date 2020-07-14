@@ -1,6 +1,13 @@
 import pytest
 
-from rasa.nlu.constants import TEXT, INTENT, RESPONSE, TOKENS_NAMES, MESSAGE_ACTION_NAME, ACTION_TEXT
+from rasa.nlu.constants import (
+    TEXT,
+    INTENT,
+    RESPONSE,
+    TOKENS_NAMES,
+    MESSAGE_ACTION_NAME,
+    ACTION_TEXT,
+)
 from rasa.nlu.training_data import Message, TrainingData
 from rasa.nlu.tokenizers.whitespace_tokenizer import WhitespaceTokenizer
 
@@ -113,8 +120,7 @@ def test_process_tokenizer(text, expected_tokens, expected_indices):
 
 
 @pytest.mark.parametrize(
-    "text, expected_tokens",
-    [("action_listen", ["action","listen"])],
+    "text, expected_tokens", [("action_listen", ["action", "listen"])],
 )
 def test_process_tokenizer_action_name(text, expected_tokens):
     tk = WhitespaceTokenizer()
@@ -130,8 +136,7 @@ def test_process_tokenizer_action_name(text, expected_tokens):
 
 
 @pytest.mark.parametrize(
-    "text, expected_tokens",
-    [("I am hungry", ["I","am", "hungry"])],
+    "text, expected_tokens", [("I am hungry", ["I", "am", "hungry"])],
 )
 def test_process_tokenizer_action_test(text, expected_tokens):
     tk = WhitespaceTokenizer()
@@ -174,7 +179,7 @@ def test_split_intent(text, expected_tokens):
     [
         ("Forecast_for_LUNCH", ["Forecast_for_LUNCH"]),
         ("Forecast for LUNCH", ["Forecast for LUNCH"]),
-        ("Forecast+for+LUNCH", ["Forecast", "for", "LUNCH"])
+        ("Forecast+for+LUNCH", ["Forecast", "for", "LUNCH"]),
     ],
 )
 def test_split_action_name(text, expected_tokens):
