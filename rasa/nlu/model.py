@@ -166,7 +166,12 @@ class Trainer:
         return pipeline
 
     def filter_data(self, training_data: TrainingData) -> TrainingData:
-        training_data.training_examples = [example for example in training_data.training_examples if not example.get(MESSAGE_ACTION_NAME) and not example.get(MESSAGE_INTENT_NAME)]
+        training_data.training_examples = [
+            example
+            for example in training_data.training_examples
+            if not example.get(MESSAGE_ACTION_NAME)
+            and not example.get(MESSAGE_INTENT_NAME)
+        ]
         return training_data
 
     def train(self, data: TrainingData, **kwargs: Any) -> "Interpreter":
@@ -193,7 +198,9 @@ class Trainer:
         working_data = copy.deepcopy(data)
 
         for i, component in enumerate(self.pipeline):
-            if isinstance(component, IntentClassifier) or isinstance(component, EntityExtractor):
+            if isinstance(component, IntentClassifier) or isinstance(
+                component, EntityExtractor
+            ):
                 working_data = self.filter_data(working_data)
             logger.info(f"Starting to train component {component.name}")
             component.prepare_partial_processing(self.pipeline[:i], context)
